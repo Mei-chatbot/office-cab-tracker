@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Office Cab Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  :root {
+    --zoho-blue: #0E6FFF;
+    --zoho-blue-dark: #0051CC;
+    --zoho-blue-light: #E8F1FF;
+    --zoho-teal: #00BFA5;
+    --zoho-teal-light: #E0F7F4;
+    --surface: #FFFFFF;
+    --surface-2: #F4F7FB;
+    --surface-3: #EDF1F7;
+    --text-primary: #1A2332;
+    --text-secondary: #5A6A7E;
+    --text-muted: #8C9DB5;
+    --border: #DDE3ED;
+    --danger: #FF4444;
+    --danger-light: #FFF0F0;
+    --warning: #FF9800;
+    --warning-light: #FFF8E1;
+    --success: #00C853;
+    --success-light: #E8F5E9;
+    --shadow-sm: 0 1px 3px rgba(14,111,255,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 16px rgba(14,111,255,0.12), 0 2px 6px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 32px rgba(14,111,255,0.16), 0 4px 12px rgba(0,0,0,0.1);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; height: 100vh; height: 100dvh; flex-direction: column; overflow: hidden; }
+  .screen.active { display: flex; }
+
+  /* ── SPLASH / HOME ── */
+  #screen-home {
+    background: linear-gradient(160deg, #0E6FFF 0%, #0051CC 50%, #003999 100%);
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  #screen-home::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 280px; height: 280px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+  }
+  #screen-home::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; left: -60px;
+    width: 200px; height: 200px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+  }
+  .home-inner {
+    width: 100%; max-width: 380px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0; position: relative; z-index: 1;
+  }
+  .app-logo {
+    width: 72px; height: 72px;
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.25);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+  }
+  .app-title {
+    font-size: 26px; font-weight: 700;
+    color: #fff; text-align: center;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+  .app-subtitle {
+    font-size: 14px; color: rgba(255,255,255,0.7);
+    text-align: center; margin-bottom: 36px;
+    line-height: 1.5;
+  }
+
+  /* Route Selector */
+  .route-card {
+    width: 100%;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 24px;
+    backdrop-filter: blur(10px);
+  }
+  .route-label {
+    font-size: 11px; font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .route-select {
+    width: 100%;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 500;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='white' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+  .route-select option { background: #0051CC; color: #fff; }
+
+  /* Role buttons */
+  .role-section-title {
+    font-size: 13px; font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    text-align: center; margin-bottom: 16px;
+    letter-spacing: 0.3px;
+  }
+  .role-buttons { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .btn-role {
+    width: 100%; padding: 16px 20px;
+    border-radius: var(--radius);
+    border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 12px;
+    transition: all 0.2s ease;
+    text-align: left;
+  }
+  .btn-role-volunteer {
+    background: #fff;
+    color: var(--zoho-blue-dark);
+    box-shadow: var(--shadow-md);
+  }
+  .btn-role-volunteer:active { transform: scale(0.97); }
+  .btn-role-watcher {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.35);
+    backdrop-filter: blur(10px);
+  }
+  .btn-role-watcher:active { transform: scale(0.97); background: rgba(255,255,255,0.2); }
+  .btn-role-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .btn-role-volunteer .btn-role-icon { background: var(--zoho-blue-light); }
+  .btn-role-watcher .btn-role-icon { background: rgba(255,255,255,0.15); }
+  .btn-role-text { display: flex; flex-direction: column; gap: 2px; }
+  .btn-role-text span:first-child { font-size: 15px; }
+  .btn-role-text span:last-child { font-size: 12px; font-weight: 400; opacity: 0.75; }
+
+  /* ── VOLUNTEER SCREEN ── */
+  #screen-volunteer { background: var(--surface-2); }
+  .vol-header {
+    background: var(--surface);
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+  }
+  .back-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+  .header-title { font-size: 16px; font-weight: 700; color: var(--text-primary); flex: 1; }
+  .header-route-badge {
+    font-size: 11px; font-weight: 600;
+    background: var(--zoho-blue-light);
+    color: var(--zoho-blue);
+    padding: 4px 10px; border-radius: 20px;
+  }
+
+  .vol-content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  .section-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+  }
+  .section-card-title {
+    font-size: 12px; font-weight: 600;
+    color: var(--text-muted); letter-spacing: 0.8px;
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+
+  /* Cab time grid */
+  .cab-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .cab-chip {
+    padding: 10px 6px; border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    background: var(--surface-2);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px; font-weight: 500;
+    color: var(--text-secondary);
+    text-align: center; cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+  }
+  .cab-chip:active { transform: scale(0.95); }
+  .cab-chip.selected {
+    background: var(--zoho-blue);
+    border-color: var(--zoho-blue);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(14,111,255,0.35);
+  }
+  .cab-chip.active-cab {
+    border-color: var(--zoho-teal);
+    background: var(--zoho-teal-light);
+    color: var(--zoho-teal);
+  }
+  .cab-chip.active-cab::after {
+    content: '';
+    position: absolute; top: 5px; right: 5px;
+    width: 6px; height: 6px;
+    background: var(--zoho-teal); border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+
+  /* Toggle full */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 0;
+  }
+  .toggle-label { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+  .toggle-sublabel { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .toggle-switch {
+    position: relative; width: 48px; height: 26px;
+    flex-shrink: 0;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: var(--border); border-radius: 13px;
+    cursor: pointer; transition: 0.2s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute; left: 3px; top: 3px;
+    width: 20px; height: 20px;
+    background: #fff; border-radius: 50%;
+    transition: 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  input:checked + .toggle-slider { background: var(--danger); }
+  input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+  /* Share location status */
+  .location-status {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .location-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--text-muted); flex-shrink: 0;
+  }
+  .location-dot.active { background: var(--success); animation: pulse 1.5s infinite; }
+  .location-dot.error { background: var(--danger); }
+  .location-status-text { font-size: 13px; color: var(--text-secondary); flex: 1; line-height: 1.4; }
+  .location-coords {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--text-muted); margin-top: 3px;
+  }
+
+  /* Timer */
+  .timer-bar {
+    height: 6px; background: var(--border);
+    border-radius: 3px; overflow: hidden; margin-top: 10px;
+  }
+  .timer-fill {
+    height: 100%; background: var(--zoho-blue);
+    border-radius: 3px; transition: width 1s linear;
+  }
+  .timer-text {
+    font-size: 12px; color: var(--text-muted);
+    text-align: right; margin-top: 6px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    width: 100%; padding: 15px;
+    background: var(--zoho-blue);
+    color: #fff; border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary:active { transform: scale(0.97); background: var(--zoho-blue-dark); }
+  .btn-primary:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
+
+  .btn-danger {
+    width: 100%; padding: 15px;
+    background: var(--danger-light);
+    color: var(--danger); border: 1.5px solid var(--danger);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-danger:active { transform: scale(0.97); background: var(--danger); color: #fff; }
+
+  .btn-success {
+    width: 100%; padding: 15px;
+    background: var(--success-light);
+    color: var(--success); border: 1.5px solid var(--success);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-success:active { transform: scale(0.97); background: var(--success); color: #fff; }
+
+  .wake-warning {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--warning-light);
+    border: 1px solid rgba(255,152,0,0.25);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+  }
+  .wake-warning-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .wake-warning-text { font-size: 12px; color: #7A5400; line-height: 1.5; }
+
+  /* ── WATCHER SCREEN ── */
+  #screen-watcher { background: var(--surface-2); position: relative; }
+  .map-container { flex: 1; position: relative; z-index: 0; }
+  #map { width: 100%; height: 100%; }
+
+  /* Bottom sheet */
+  .bottom-sheet {
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 24px rgba(14,111,255,0.12);
+    padding: 0 0 env(safe-area-inset-bottom, 16px);
+    flex-shrink: 0;
+    z-index: 1000;
+    border-top: 1px solid var(--border);
+  }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--border); border-radius: 2px;
+    margin: 10px auto 16px;
+  }
+  .sheet-header {
+    padding: 0 20px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sheet-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .sheet-route {
+    font-size: 12px; color: var(--text-muted);
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  /* Cab status list */
+  .cab-list { padding: 0 20px 16px; display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto; }
+  .cab-status-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .cab-status-row.tracking {
+    background: var(--zoho-blue-light);
+    border-color: rgba(14,111,255,0.25);
+  }
+  .cab-time-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px; font-weight: 500;
+    color: var(--text-primary); flex-shrink: 0; width: 44px;
+  }
+  .cab-status-row.tracking .cab-time-badge { color: var(--zoho-blue); }
+  .cab-status-info { flex: 1; }
+  .cab-status-label {
+    font-size: 13px; font-weight: 500; color: var(--text-secondary);
+  }
+  .cab-status-row.tracking .cab-status-label { color: var(--zoho-blue); font-weight: 600; }
+  .cab-last-update { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .cab-full-badge {
+    font-size: 10px; font-weight: 700;
+    background: var(--danger); color: #fff;
+    padding: 3px 8px; border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+  .cab-active-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--zoho-blue); flex-shrink: 0;
+    animation: pulse 1.5s infinite;
+  }
+  .no-cabs-message {
+    text-align: center; padding: 20px;
+    color: var(--text-muted); font-size: 14px; line-height: 1.6;
+  }
+  .no-cabs-icon { font-size: 32px; margin-bottom: 10px; }
+
+  /* Top overlay on map */
+  .map-overlay-top {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 500;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 6px 16px;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .map-back-btn {
+    position: absolute; top: 12px; left: 16px; z-index: 500;
+    width: 38px; height: 38px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 10px; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--text-secondary);
+    cursor: pointer; box-shadow: var(--shadow-sm);
+  }
+  .live-indicator {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--success);
+    animation: pulse 1.5s infinite;
+    flex-shrink: 0;
+  }
+  .live-text { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: var(--text-primary); color: #fff;
+    padding: 12px 20px; border-radius: 20px;
+    font-size: 13px; font-weight: 500;
+    z-index: 9999; transition: transform 0.3s ease;
+    white-space: nowrap; box-shadow: var(--shadow-lg);
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9000; display: none;
+    align-items: flex-end; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    padding: 28px 24px 40px;
+    width: 100%; max-width: 480px;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .modal-icon { font-size: 48px; text-align: center; margin-bottom: 16px; }
+  .modal-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+  .modal-desc { font-size: 14px; color: var(--text-secondary); text-align: center; line-height: 1.6; margin-bottom: 24px; }
+  .modal-actions { display: flex; flex-direction: column; gap: 10px; }
+  .btn-modal-primary {
+    width: 100%; padding: 15px;
+    background: var(--zoho-blue); color: #fff;
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .btn-modal-secondary {
+    width: 100%; padding: 15px;
+    background: var(--surface-2); color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 500; cursor: pointer;
+  }
+
+  /* Leaflet overrides */
+  .leaflet-control-zoom { border: none !important; box-shadow: var(--shadow-md) !important; }
+  .leaflet-control-zoom a {
+    border-radius: 8px !important;
+    font-size: 18px !important;
+    width: 34px !important; height: 34px !important;
+    line-height: 34px !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+    background: rgba(255,255,255,0.95) !important;
+  }
+
+  /* Cab marker label */
+  .cab-marker-label {
+    background: var(--zoho-blue);
+    color: #fff;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    padding: 3px 7px; border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(14,111,255,0.4);
+    border: 1.5px solid rgba(255,255,255,0.4);
+  }
+  .cab-marker-label.full {
+    background: var(--danger);
+    box-shadow: 0 2px 8px rgba(255,68,68,0.4);
+  }
+
+  .scrollable { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 1 — HOME
+══════════════════════════════════════════ -->
+<div id="screen-home" class="screen active">
+  <div class="home-inner">
+    <div class="app-logo">🚌</div>
+    <div class="app-title">Office Cab Tracker</div>
+    <div class="app-subtitle">Real-time cab location sharing<br>for Zoho employees</div>
+
+    <div class="route-card">
+      <div class="route-label">Select Route</div>
+      <select class="route-select" id="route-select">
+        <option value="estancia-krisp">Estancia → Krisp IT Park</option>
+      </select>
+    </div>
+
+    <div class="role-section-title">How are you using the app today?</div>
+    <div class="role-buttons">
+      <button class="btn-role btn-role-volunteer" onclick="goVolunteer()">
+        <div class="btn-role-icon">📍</div>
+        <div class="btn-role-text">
+          <span>I'm in the cab</span>
+          <span>Share live location as volunteer</span>
+        </div>
+      </button>
+      <button class="btn-role btn-role-watcher" onclick="goWatcher()">
+        <div class="btn-role-icon">👁️</div>
+        <div class="btn-role-text">
+          <span>I'm waiting for the cab</span>
+          <span>See where the cab is right now</span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 2 — VOLUNTEER
+══════════════════════════════════════════ -->
+<div id="screen-volunteer" class="screen">
+  <div class="vol-header">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div class="header-title">Volunteer Mode</div>
+    <div class="header-route-badge" id="vol-route-badge">Estancia → Krisp</div>
+  </div>
+
+  <div class="vol-content scrollable">
+
+    <!-- Step 1: Select Cab -->
+    <div class="section-card">
+      <div class="section-card-title">Step 1 — Select Your Cab Time</div>
+      <div class="cab-grid" id="vol-cab-grid">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+    <!-- Step 2: Location -->
+    <div class="section-card" id="vol-location-card">
+      <div class="section-card-title">Step 2 — Location Sharing</div>
+      <div class="location-status" id="loc-status-box">
+        <div class="location-dot" id="loc-dot"></div>
+        <div class="location-status-text">
+          <div id="loc-status-text">Select a cab time to begin</div>
+          <div class="location-coords" id="loc-coords"></div>
+        </div>
+      </div>
+      <div class="timer-bar" id="timer-bar-wrap" style="display:none">
+        <div class="timer-fill" id="timer-fill" style="width:100%"></div>
+      </div>
+      <div class="timer-text" id="timer-text" style="display:none"></div>
+    </div>
+
+    <!-- Step 3: Mark Full -->
+    <div class="section-card" id="vol-full-card">
+      <div class="section-card-title">Step 3 — Cab Status</div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Cab is Full</div>
+          <div class="toggle-sublabel">Toggle if no more seats available</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="cab-full-toggle" onchange="toggleFull()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Wake Lock Warning -->
+    <div class="wake-warning">
+      <div class="wake-warning-icon">⚠️</div>
+      <div class="wake-warning-text">Keep your screen on while sharing location. Locking your phone will pause GPS updates for everyone watching.</div>
+    </div>
+
+    <!-- Action Buttons -->
+    <button class="btn-primary" id="btn-start-share" onclick="startSharing()" disabled>
+      📍 Start Sharing Location
+    </button>
+    <button class="btn-success" id="btn-reached" onclick="markReached()" style="display:none">
+      ✅ Cab Reached Destination
+    </button>
+    <button class="btn-danger" id="btn-stop-share" onclick="stopSharing()" style="display:none">
+      Stop Sharing
+    </button>
+
+    <div style="height: 20px;"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 3 — WATCHER
+══════════════════════════════════════════ -->
+<div id="screen-watcher" class="screen">
+  <div class="map-container">
+    <div id="map"></div>
+    <button class="map-back-btn" onclick="goHome()">←</button>
+    <div class="map-overlay-top">
+      <div class="live-indicator"></div>
+      <div class="live-text" id="watcher-route-label">Estancia → Krisp IT Park</div>
+    </div>
+  </div>
+
+  <div class="bottom-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">Active Cabs</div>
+      <div class="sheet-route">🕐 Updates every 5s</div>
+    </div>
+    <div class="cab-list scrollable" id="watcher-cab-list">
+      <div class="no-cabs-message">
+        <div class="no-cabs-icon">🔍</div>
+        <div>Checking for active cabs...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-icon" id="modal-icon">✅</div>
+    <div class="modal-title" id="modal-title">Title</div>
+    <div class="modal-desc" id="modal-desc">Description</div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════════
+     FIREBASE + APP LOGIC
+══════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, remove, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ── Firebase Config ──
+const firebaseConfig = {
+  apiKey: "AIzaSyAjUXGndnv0SWtjCfjwuSAztpzt2A4IWhY",
+  authDomain: "office-cab-tracker.firebaseapp.com",
+  databaseURL: "https://office-cab-tracker-default-rtdb.firebaseio.com",
+  projectId: "office-cab-tracker",
+  storageBucket: "office-cab-tracker.firebasestorage.app",
+  messagingSenderId: "338094144685",
+  appId: "1:338094144685:web:05a984ff4609d215639a24"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ── Constants ──
+const CAB_TIMES = ["8:05","8:20","8:35","9:05","9:20","9:35","10:05","10:35","11:00"];
+const ROUTES = {
+  "estancia-krisp": {
+    label: "Estancia → Krisp IT Park",
+    short: "Estancia → Krisp",
+    origin: [12.831177, 80.049352],
+    destination: [12.841582, 80.152501],
+    originLabel: "Zoho Estancia",
+    destLabel: "Krisp IT Park",
+    center: [12.836, 80.100],
+    zoom: 13
+  }
+};
+const SHARE_DURATION_MS = 60 * 60 * 1000; // 60 minutes
+const UPDATE_INTERVAL_MS = 5000;
+
+// ── State ──
+let currentRole = null;
+let selectedRoute = "estancia-krisp";
+let selectedCabTime = null;
+let isSharing = false;
+let shareStartTime = null;
+let geoWatchId = null;
+let updateIntervalId = null;
+let timerIntervalId = null;
+let wakeLock = null;
+let currentLat = null;
+let currentLng = null;
+
+// Watcher state
+let watcherMap = null;
+let cabMarkers = {}; // cabTime -> leaflet marker
+let watcherListenerRef = null;
+
+// ── Expose globals ──
+window.goHome = goHome;
+window.goVolunteer = goVolunteer;
+window.goWatcher = goWatcher;
+window.startSharing = startSharing;
+window.stopSharing = stopSharing;
+window.toggleFull = toggleFull;
+window.markReached = markReached;
+window.closeModal = closeModal;
+
+// ── Screen Management ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goHome() {
+  if (isSharing) {
+    showModal('⚠️', 'Stop Sharing First', 'Please stop location sharing before going back.', [
+      { label: 'OK', cls: 'btn-modal-primary', action: 'closeModal()' }
+    ]);
+    return;
+  }
+  cleanupWatcher();
+  showScreen('screen-home');
+}
+
+function goVolunteer() {
+  selectedRoute = document.getElementById('route-select').value;
+  currentRole = 'volunteer';
+  selectedCabTime = null;
+  isSharing = false;
+  renderVolunteerCabGrid();
+  resetVolunteerUI();
+  showScreen('screen-volunteer');
+}
+
+async function goWatcher() {
+  selectedRoute = document.getElementById('route-select').value;
+  currentRole = 'watcher';
+  showScreen('screen-watcher');
+  await initWatcherMap();
+  startWatcherListener();
+}
+
+// ── VOLUNTEER ──
+function renderVolunteerCabGrid() {
+  const grid = document.getElementById('vol-cab-grid');
+  grid.innerHTML = '';
+  CAB_TIMES.forEach(t => {
+    const chip = document.createElement('div');
+    chip.className = 'cab-chip';
+    chip.textContent = t;
+    chip.dataset.time = t;
+    chip.onclick = () => selectCabTime(t);
+    grid.appendChild(chip);
+  });
+  // Show which cabs are already tracked by a volunteer
+  const cabsRef = ref(db, `cabs/${selectedRoute}`);
+  onValue(cabsRef, snap => {
+    const data = snap.val() || {};
+    document.querySelectorAll('.cab-chip').forEach(chip => {
+      const t = chip.dataset.time;
+      if (data[t] && data[t].active && chip.dataset.time !== selectedCabTime) {
+        chip.classList.add('active-cab');
+      } else {
+        chip.classList.remove('active-cab');
+      }
+      if (chip.dataset.time === selectedCabTime) {
+        chip.classList.add('selected');
+      }
+    });
+  }, { onlyOnce: true });
+}
+
+function selectCabTime(time) {
+  if (isSharing) return;
+  selectedCabTime = time;
+  document.querySelectorAll('.cab-chip').forEach(c => {
+    c.classList.remove('selected');
+    if (c.dataset.time === time) c.classList.add('selected');
+  });
+  document.getElementById('btn-start-share').disabled = false;
+  document.getElementById('loc-status-text').textContent = `Ready to share for ${time} cab`;
+}
+
+function resetVolunteerUI() {
+  document.getElementById('loc-dot').className = 'location-dot';
+  document.getElementById('loc-status-text').textContent = 'Select a cab time to begin';
+  document.getElementById('loc-coords').textContent = '';
+  document.getElementById('timer-bar-wrap').style.display = 'none';
+  document.getElementById('timer-text').style.display = 'none';
+  document.getElementById('btn-start-share').style.display = 'flex';
+  document.getElementById('btn-start-share').disabled = true;
+  document.getElementById('btn-stop-share').style.display = 'none';
+  document.getElementById('btn-reached').style.display = 'none';
+  document.getElementById('cab-full-toggle').checked = false;
+}
+
+async function startSharing() {
+  if (!selectedCabTime) return;
+
+  // Check if another volunteer already active for this cab
+  const cabRef = ref(db, `cabs/${selectedRoute}/${selectedCabTime.replace(':','-')}`);
+  const snap = await get(cabRef);
+  if (snap.exists() && snap.val().active) {
+    showModal('🚌', 'Already Active', `The ${selectedCabTime} cab already has an active volunteer sharing location. Only one volunteer per cab is allowed.`, [
+      { label: 'OK', cls: 'btn-modal-primary', action: 'closeModal()' }
+    ]);
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    showToast('Geolocation not supported on this device');
+    return;
+  }
+
+  // Request wake lock
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+    }
+  } catch(e) { /* wake lock not critical */ }
+
+  isSharing = true;
+  shareStartTime = Date.now();
+
+  document.getElementById('btn-start-share').style.display = 'none';
+  document.getElementById('btn-stop-share').style.display = 'block';
+  document.getElementById('btn-reached').style.display = 'flex';
+  document.getElementById('timer-bar-wrap').style.display = 'block';
+  document.getElementById('timer-text').style.display = 'block';
+  document.getElementById('loc-dot').className = 'location-dot active';
+  document.getElementById('loc-status-text').textContent = 'Acquiring GPS…';
+
+  // Watch position
+  geoWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      currentLat = pos.coords.latitude;
+      currentLng = pos.coords.longitude;
+      document.getElementById('loc-coords').textContent = `${currentLat.toFixed(5)}, ${currentLng.toFixed(5)}`;
+      document.getElementById('loc-status-text').textContent = `Sharing location for ${selectedCabTime} cab`;
+    },
+    err => {
+      document.getElementById('loc-dot').className = 'location-dot error';
+      document.getElementById('loc-status-text').textContent = 'GPS error — check permissions';
+    },
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+  );
+
+  // Push to Firebase every 5s
+  updateIntervalId = setInterval(pushLocation, UPDATE_INTERVAL_MS);
+  pushLocation(); // immediate first push
+
+  // Timer countdown
+  timerIntervalId = setInterval(updateTimer, 1000);
+  updateTimer();
+}
+
+function pushLocation() {
+  if (!currentLat || !currentLng) return;
+  const elapsed = Date.now() - shareStartTime;
+  if (elapsed >= SHARE_DURATION_MS) {
+    showToast('60 minutes reached — sharing stopped automatically');
+    stopSharing();
+    return;
+  }
+  const cabKey = selectedCabTime.replace(':', '-');
+  const isFull = document.getElementById('cab-full-toggle').checked;
+  set(ref(db, `cabs/${selectedRoute}/${cabKey}`), {
+    lat: currentLat,
+    lng: currentLng,
+    time: selectedCabTime,
+    full: isFull,
+    active: true,
+    updatedAt: Date.now()
+  });
+}
+
+function updateTimer() {
+  const elapsed = Date.now() - shareStartTime;
+  const remaining = SHARE_DURATION_MS - elapsed;
+  if (remaining <= 0) return;
+  const pct = (remaining / SHARE_DURATION_MS) * 100;
+  document.getElementById('timer-fill').style.width = pct + '%';
+  const mins = Math.floor(remaining / 60000);
+  const secs = Math.floor((remaining % 60000) / 1000);
+  document.getElementById('timer-text').textContent = `Auto-stop in ${mins}m ${secs}s`;
+}
+
+function toggleFull() {
+  if (isSharing) pushLocation();
+}
+
+async function markReached() {
+  showModal('✅', 'Cab Reached Destination?', 'Confirm that the cab has reached the destination. This will stop location sharing.', [
+    { label: 'Yes, Cab Reached', cls: 'btn-modal-primary', action: 'confirmReached()' },
+    { label: 'Cancel', cls: 'btn-modal-secondary', action: 'closeModal()' }
+  ]);
+}
+
+window.confirmReached = async function() {
+  closeModal();
+  const cabKey = selectedCabTime.replace(':', '-');
+  await remove(ref(db, `cabs/${selectedRoute}/${cabKey}`));
+  stopSharing(true);
+  showToast('✅ Marked as reached — sharing stopped');
+}
+
+async function stopSharing(skipRemove = false) {
+  isSharing = false;
+  if (geoWatchId !== null) { navigator.geolocation.clearWatch(geoWatchId); geoWatchId = null; }
+  if (updateIntervalId) { clearInterval(updateIntervalId); updateIntervalId = null; }
+  if (timerIntervalId) { clearInterval(timerIntervalId); timerIntervalId = null; }
+  if (wakeLock) { try { await wakeLock.release(); } catch(e){} wakeLock = null; }
+
+  if (!skipRemove && selectedCabTime) {
+    const cabKey = selectedCabTime.replace(':', '-');
+    await remove(ref(db, `cabs/${selectedRoute}/${cabKey}`));
+  }
+
+  resetVolunteerUI();
+  // Reselect the cab time visually
+  if (selectedCabTime) {
+    document.querySelectorAll('.cab-chip').forEach(c => {
+      if (c.dataset.time === selectedCabTime) c.classList.add('selected');
+    });
+    document.getElementById('btn-start-share').disabled = false;
+  }
+}
+
+// ── WATCHER ──
+async function initWatcherMap() {
+  if (watcherMap) return;
+  const route = ROUTES[selectedRoute];
+
+  watcherMap = L.map('map', {
+    center: route.center,
+    zoom: route.zoom,
+    zoomControl: true
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(watcherMap);
+
+  // Origin marker
+  const originIcon = L.divIcon({
+    html: `<div style="background:#0E6FFF;color:#fff;padding:5px 10px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(14,111,255,0.4);">🏢 ${route.originLabel}</div>`,
+    className: '', iconAnchor: [0, 0]
+  });
+  L.marker(route.origin, { icon: originIcon }).addTo(watcherMap);
+
+  // Destination marker
+  const destIcon = L.divIcon({
+    html: `<div style="background:#00BFA5;color:#fff;padding:5px 10px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,191,165,0.4);">🏁 ${route.destLabel}</div>`,
+    className: '', iconAnchor: [0, 0]
+  });
+  L.marker(route.destination, { icon: destIcon }).addTo(watcherMap);
+}
+
+function startWatcherListener() {
+  if (watcherListenerRef) return;
+  const route = ROUTES[selectedRoute];
+  watcherListenerRef = ref(db, `cabs/${selectedRoute}`);
+
+  onValue(watcherListenerRef, snap => {
+    const data = snap.val() || {};
+    const activeKeys = Object.keys(data);
+
+    // Remove stale markers
+    Object.keys(cabMarkers).forEach(k => {
+      if (!activeKeys.includes(k)) {
+        watcherMap.removeLayer(cabMarkers[k]);
+        delete cabMarkers[k];
+      }
+    });
+
+    // Update or add markers
+    activeKeys.forEach(key => {
+      const cab = data[key];
+      if (!cab.active) return;
+      const staleMs = Date.now() - (cab.updatedAt || 0);
+      const isStale = staleMs > 30000; // 30s no update = stale
+      const isFull = cab.full;
+
+      const labelHtml = `<div class="cab-marker-label ${isFull ? 'full' : ''}">${isFull ? '🚫 ' : '🚌 '}${cab.time}${isStale ? ' ·' : ''}</div>`;
+      const cabIcon = L.divIcon({ html: labelHtml, className: '', iconAnchor: [20, 10] });
+
+      if (cabMarkers[key]) {
+        cabMarkers[key].setLatLng([cab.lat, cab.lng]);
+        cabMarkers[key].setIcon(cabIcon);
+      } else {
+        cabMarkers[key] = L.marker([cab.lat, cab.lng], { icon: cabIcon }).addTo(watcherMap);
+      }
+    });
+
+    renderWatcherList(data);
+  });
+}
+
+function renderWatcherList(data) {
+  const list = document.getElementById('watcher-cab-list');
+  const active = Object.values(data).filter(c => c.active);
+
+  if (active.length === 0) {
+    const hour = new Date().getHours();
+    const isMorning = hour >= 6 && hour <= 12;
+    list.innerHTML = `<div class="no-cabs-message">
+      <div class="no-cabs-icon">${isMorning ? '🔍' : '🌙'}</div>
+      <div>${isMorning
+        ? 'No volunteers are sharing location right now.<br>Waiting for a volunteer to board a cab.'
+        : 'This app is designed for morning cabs only.<br>Cab tracking is active between 8:00 AM – 12:00 PM.'
+      }</div>
+    </div>`;
+    return;
+  }
+
+  // Sort by time
+  active.sort((a, b) => a.time.localeCompare(b.time));
+  list.innerHTML = '';
+
+  active.forEach(cab => {
+    const staleMs = Date.now() - (cab.updatedAt || 0);
+    const isStale = staleMs > 30000;
+    const secsAgo = Math.floor(staleMs / 1000);
+    const lastUpdate = isStale ? `Last seen ${secsAgo}s ago — may be offline` : `Updated ${secsAgo}s ago`;
+    const row = document.createElement('div');
+    row.className = `cab-status-row tracking`;
+    row.innerHTML = `
+      <div class="cab-time-badge">${cab.time}</div>
+      <div class="cab-status-info">
+        <div class="cab-status-label">🚌 Active${cab.full ? ' · Full' : ''}</div>
+        <div class="cab-last-update">${lastUpdate}</div>
+      </div>
+      ${cab.full ? '<div class="cab-full-badge">FULL</div>' : '<div class="cab-active-dot"></div>'}
+    `;
+    row.onclick = () => {
+      const key = cab.time.replace(':', '-');
+      if (cabMarkers[key]) {
+        watcherMap.setView(cabMarkers[key].getLatLng(), 15, { animate: true });
+      }
+    };
+    list.appendChild(row);
+  });
+
+  // Also show upcoming cabs not yet active
+  CAB_TIMES.forEach(t => {
+    const key = t.replace(':', '-');
+    const exists = active.find(c => c.time === t);
+    if (!exists) {
+      const row = document.createElement('div');
+      row.className = 'cab-status-row';
+      row.innerHTML = `
+        <div class="cab-time-badge" style="color:var(--text-muted)">${t}</div>
+        <div class="cab-status-info">
+          <div class="cab-status-label" style="color:var(--text-muted)">No volunteer yet</div>
+          <div class="cab-last-update">Waiting for a cab volunteer</div>
+        </div>
+      `;
+      list.appendChild(row);
+    }
+  });
+}
+
+function cleanupWatcher() {
+  if (watcherListenerRef) {
+    // Firebase auto-cleans, just null ref
+    watcherListenerRef = null;
+  }
+  if (watcherMap) {
+    watcherMap.remove();
+    watcherMap = null;
+    cabMarkers = {};
+  }
+}
+
+// ── MODAL & TOAST ──
+function showModal(icon, title, desc, actions) {
+  document.getElementById('modal-icon').textContent = icon;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-desc').innerHTML = desc;
+  const actDiv = document.getElementById('modal-actions');
+  actDiv.innerHTML = '';
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = a.cls;
+    btn.textContent = a.label;
+    btn.onclick = () => eval(a.action);
+    actDiv.appendChild(btn);
+  });
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── DAILY CLEANUP ──
+// Clear all cab data at midnight (each client participates — first one to cross midnight wins)
+function scheduleMidnightCleanup() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setDate(midnight.getDate() + 1);
+  midnight.setHours(0, 0, 0, 0);
+  const msToMidnight = midnight - now;
+  setTimeout(async () => {
+    await remove(ref(db, 'cabs'));
+    scheduleMidnightCleanup();
+  }, msToMidnight);
+}
+scheduleMidnightCleanup();
+
+</script>
+</body>
+</html>
