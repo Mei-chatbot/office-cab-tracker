@@ -111,6 +111,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface-2);color:var(--te
 .map-top{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-radius:20px;padding:6px 16px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-md);border:1px solid var(--border);white-space:nowrap}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 1.5s infinite;flex-shrink:0}
 .live-txt{font-size:12px;font-weight:600;color:var(--text)}
+
+/* Route loading indicator */
+.route-status{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:4px 12px;border-radius:12px;display:none;white-space:nowrap}
+.route-status.show{display:block}
+
 .map-controls-right{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:500;display:flex;flex-direction:column;gap:10px}
 .map-ctrl-btn{width:48px;height:48px;background:#fff;border-radius:14px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow-md);transition:all .2s}
 .map-ctrl-btn:active{transform:scale(.92)}
@@ -124,8 +129,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface-2);color:var(--te
 .stale-banner.show{display:flex}
 .stale-banner-text{font-size:13px;font-weight:600;color:#fff;flex:1}
 .stale-banner-close{font-size:18px;color:rgba(255,255,255,.8);cursor:pointer}
-
-/* BOTTOM SHEET */
 .bottom-sheet{background:var(--surface);border-radius:20px 20px 0 0;box-shadow:0 -4px 24px rgba(14,111,255,.12);padding:0 0 env(safe-area-inset-bottom,16px);flex-shrink:0;z-index:1000;border-top:1px solid var(--border)}
 .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 16px}
 .sheet-hdr{padding:0 20px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -148,8 +151,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface-2);color:var(--te
 .cab-live-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;animation:pulse 1.5s infinite}
 .no-cabs{text-align:center;padding:20px;color:var(--text-3);font-size:14px;line-height:1.6}
 .no-cabs-icon{font-size:32px;margin-bottom:10px}
-
-/* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
 .modal-overlay.show{display:flex}
 .modal-box{background:var(--surface);border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;animation:slideUp .3s ease}
@@ -165,11 +166,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface-2);color:var(--te
 .toast.show{transform:translateX(-50%) translateY(0)}
 .leaflet-control-zoom{border:none!important;box-shadow:var(--shadow-md)!important}
 .leaflet-control-zoom a{border-radius:8px!important;font-size:18px!important;width:34px!important;height:34px!important;line-height:34px!important;color:var(--text)!important;border:1px solid var(--border)!important;background:rgba(255,255,255,.95)!important}
-.cab-marker-outer{display:flex;flex-direction:column;align-items:center}
-.cab-label-tag{background:var(--blue);color:#fff;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;padding:3px 9px;border-radius:8px 8px 2px 2px;white-space:nowrap;border:1.5px solid rgba(255,255,255,.5);border-bottom:none;letter-spacing:.3px;margin-bottom:-1px}
+
+/* CAB MARKER — fixed anchor, rotate only img */
+.cab-marker-wrap{display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.cab-label-tag{color:#fff;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;padding:3px 9px;border-radius:8px 8px 2px 2px;white-space:nowrap;border:1.5px solid rgba(255,255,255,.5);border-bottom:none;letter-spacing:.3px;margin-bottom:-1px}
 .cab-label-tag.full{background:var(--danger)}
 .cab-label-tag.arrived{background:var(--success)}
-.cab-van-png{display:block;object-fit:contain}
+/* The img rotates independently — anchor stays fixed */
+.cab-van-img{display:block;width:52px;height:23px;object-fit:contain;transform-origin:center center;transition:transform 0.4s ease}
 .scrollable{overflow-y:auto;-webkit-overflow-scrolling:touch}
 </style>
 </head>
@@ -228,7 +232,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface-2);color:var(--te
     </div>
     <div class="warn-box">
       <div style="font-size:16px;flex-shrink:0">💡</div>
-      <div class="warn-text">After tapping Start, a full-screen sharing mode activates. Use Reached / Full / Stop from there. Your record is auto-removed from Firebase when you stop or close the app.</div>
+      <div class="warn-text">After tapping Start, a full-screen sharing mode activates. Your record is automatically removed from Firebase when you stop or close the app.</div>
     </div>
     <button class="btn-primary" id="btn-start" onclick="startSharing()" disabled>📍 Start Sharing Location</button>
     <div style="height:20px"></div>
@@ -262,6 +266,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface-2);color:var(--te
       <div class="live-dot"></div>
       <div class="live-txt">Estancia → Krisp IT Park</div>
     </div>
+    <div class="route-status" id="route-status">Loading road route...</div>
     <div class="map-controls-right">
       <button class="map-ctrl-btn" onclick="locateAndDistance()" id="locate-btn" title="My location & distance">
         <svg viewBox="0 0 24 24" fill="none" stroke="#0E6FFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -282,7 +287,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface-2);color:var(--te
       <div class="distance-sub" id="dist-sub">to nearest cab</div>
     </div>
     <div class="stale-banner" id="stale-banner">
-      <div class="stale-banner-text" id="stale-banner-text">⚠️ Some cabs have weak signal</div>
+      <div class="stale-banner-text">⚠️ Some cabs have weak signal — location may be outdated</div>
       <span class="stale-banner-close" onclick="this.parentElement.classList.remove('show')">✕</span>
     </div>
   </div>
@@ -332,11 +337,17 @@ const CAB_TIMES=["8:05","8:20","8:35","9:05","9:20","9:35","10:05","10:35","11:0
 const SHARE_MS=60*60*1000;
 const UPDATE_MS=5000;
 const ARRIVED_SHOW_MS=10*60*1000;
-// Staleness thresholds
-const STALE_WARN_MS  = 2*60*1000;   // 2 min → show warning
-const STALE_DEAD_MS  = 3*60*1000;   // 3 min → auto-remove from DB
-const MAX_RECORD_AGE = 2*60*60*1000;// 2 hours → nuke on any app open
-const GPS_LOST_MS    = 30*1000;     // 30s no GPS fix → warn volunteer
+const STALE_WARN_MS=2*60*1000;
+const STALE_DEAD_MS=3*60*1000;
+const MAX_RECORD_AGE=2*60*60*1000;
+const GPS_LOST_MS=30*1000;
+
+// Per-cab color palette for route lines
+const CAB_COLORS={
+  "8:05":"#0E6FFF","8:20":"#FF6B35","8:35":"#00BFA5",
+  "9:05":"#9C27B0","9:20":"#E91E63","9:35":"#FF9800",
+  "10:05":"#0E6FFF","10:35":"#FF6B35","11:00":"#00BFA5"
+};
 
 const ROUTES={
   "estancia-krisp":{
@@ -351,7 +362,8 @@ let selectedRoute="estancia-krisp",selectedCab=null;
 let isSharing=false,shareStart=null,isFull=false;
 let geoId=null,updateId=null,timerIds=[],wakeLock=null;
 let lat=null,lng=null,lastHeading=0,prevLat=null,prevLng=null,lastGpsUpdate=null;
-let watcherMap=null,cabMarkers={},watcherRef=null,lastCabData={};
+let watcherMap=null,cabMarkers={},cabRouteLines={},watcherRef=null,lastCabData={};
+let fullRouteCoords=[];   // [lat,lng] array from OSRM — shared base route
 let watcherLat=null,watcherLng=null,myLocMarker=null,listRefreshId=null;
 
 window.goHome=goHome;window.goVolunteer=goVolunteer;window.goWatcher=goWatcher;
@@ -361,60 +373,44 @@ window.confirmStop=confirmStop;window.confirmReached=confirmReached;
 window.closeModal=closeModal;window.locateAndDistance=locateAndDistance;
 window.closeDistanceBubble=closeDistanceBubble;window.cleanStaleRecords=cleanStaleRecords;
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// STARTUP: purge any records older than 2h
-// Runs every time anyone opens the app
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function purgeOldRecordsOnStartup(){
+// Startup purge
+async function purgeOldRecords(){
   try{
     const snap=await get(ref(db,"cabs"));
     if(!snap.exists())return;
-    const now=Date.now();
-    const allRoutes=snap.val();
-    const tasks=[];
-    Object.entries(allRoutes).forEach(([route,cabs])=>{
+    const now=Date.now();const tasks=[];
+    Object.entries(snap.val()).forEach(([route,cabs])=>{
       Object.entries(cabs).forEach(([key,cab])=>{
         const ts=cab.updatedAt||cab.arrivedAt||0;
-        // Delete if: no timestamp, or older than MAX_RECORD_AGE (2h), or arrived and older than 10min
-        const noTs=!ts;
-        const tooOld=ts&&(now-ts)>MAX_RECORD_AGE;
-        const arrivedExpired=cab.status==="arrived"&&ts&&(now-ts)>ARRIVED_SHOW_MS;
-        if(noTs||tooOld||arrivedExpired){
+        if(!ts||(now-ts)>MAX_RECORD_AGE||(cab.status==="arrived"&&(now-ts)>ARRIVED_SHOW_MS))
           tasks.push(remove(ref(db,`cabs/${route}/${key}`)));
-        }
       });
     });
-    if(tasks.length>0){
-      await Promise.all(tasks);
-      console.log(`Startup cleanup: removed ${tasks.length} stale record(s)`);
-    }
-  }catch(e){console.warn("Startup cleanup error:",e);}
+    if(tasks.length)await Promise.all(tasks);
+  }catch(e){}
 }
-
-// Run purge immediately on page load
-purgeOldRecordsOnStartup();
+purgeOldRecords();
 
 function showScreen(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById(id).classList.add("active")}
 
-// ── NAV ──
 function goHome(){cleanupWatcher();showScreen("screen-home")}
-
 function goVolunteer(){
   selectedRoute=document.getElementById("route-select").value;
   selectedCab=null;renderGrid();
   document.getElementById("btn-start").disabled=true;
   showScreen("screen-volunteer");
 }
-
 async function goWatcher(){
   selectedRoute=document.getElementById("route-select").value;
   showScreen("screen-watcher");
-  await initMap();startWatcher();
+  await initMap();
+  fetchRoadRoute();   // load OSRM route
+  startWatcher();
   if(listRefreshId)clearInterval(listRefreshId);
   listRefreshId=setInterval(()=>renderList(lastCabData),1000);
 }
 
-// ── VOLUNTEER GRID ──
+// ── VOLUNTEER ──
 function renderGrid(){
   const grid=document.getElementById("vol-grid");grid.innerHTML="";
   get(ref(db,`cabs/${selectedRoute}`)).then(snap=>{
@@ -429,14 +425,12 @@ function renderGrid(){
     });
   });
 }
-
 function selectCab(t){
   if(isSharing)return;selectedCab=t;
   document.querySelectorAll(".cab-chip").forEach(c=>{c.classList.remove("selected");if(c.dataset.time===t)c.classList.add("selected");});
   document.getElementById("btn-start").disabled=false;
 }
 
-// ── SHARING ──
 async function startSharing(){
   if(!selectedCab)return;
   const key=selectedCab.replace(":","_");
@@ -446,7 +440,6 @@ async function startSharing(){
   }
   if(!navigator.geolocation){showToast("Geolocation not supported");return;}
   try{if("wakeLock"in navigator)wakeLock=await navigator.wakeLock.request("screen");}catch(e){}
-
   isSharing=true;isFull=false;shareStart=Date.now();prevLat=null;prevLng=null;lastGpsUpdate=null;
   document.getElementById("ol-cab-time").textContent=selectedCab;
   document.getElementById("ol-status").textContent="Acquiring GPS...";
@@ -455,7 +448,6 @@ async function startSharing(){
   document.getElementById("btn-ol-full").textContent="🚫 Mark Cab as Full";
   document.getElementById("gps-lost-banner").classList.remove("show");
   document.getElementById("sharing-overlay").classList.add("active");
-
   geoId=navigator.geolocation.watchPosition(pos=>{
     prevLat=lat;prevLng=lng;
     lat=pos.coords.latitude;lng=pos.coords.longitude;
@@ -465,27 +457,20 @@ async function startSharing(){
     document.getElementById("ol-coords").textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     document.getElementById("gps-lost-banner").classList.remove("show");
   },err=>{
-    document.getElementById("ol-status").textContent="GPS error — check location permissions";
+    document.getElementById("ol-status").textContent="GPS error — check permissions";
     document.getElementById("gps-lost-banner").classList.add("show");
   },{enableHighAccuracy:true,maximumAge:3000,timeout:10000});
-
   updateId=setInterval(pushLoc,UPDATE_MS);pushLoc();
   timerIds.push(setInterval(updateTimer,1000));updateTimer();
   timerIds.push(setInterval(checkGpsFreshness,5000));
-
-  // Register beforeunload — delete record if tab/browser is closed
   window.addEventListener("beforeunload",onBeforeUnload);
   document.addEventListener("visibilitychange",onVisibility);
 }
 
-// Called when browser/tab is closed while sharing
 function onBeforeUnload(){
   if(!isSharing||!selectedCab)return;
-  // Use sendBeacon to reliably fire a delete on tab close
-  // Firebase REST API delete via beacon
   const url=`https://office-cab-tracker-default-rtdb.firebaseio.com/cabs/${selectedRoute}/${selectedCab.replace(":","_")}.json`;
-  navigator.sendBeacon(url+"?method=DELETE","");
-  // Also try direct remove (may not complete but worth trying)
+  navigator.sendBeacon(url+"?x-http-method-override=DELETE","");
   try{remove(ref(db,`cabs/${selectedRoute}/${selectedCab.replace(":","_")}`));}catch(e){}
 }
 
@@ -503,9 +488,7 @@ function onVisibility(){
     if(lastGpsUpdate&&Date.now()-lastGpsUpdate>GPS_LOST_MS){
       navigator.geolocation.getCurrentPosition(pos=>{
         prevLat=lat;prevLng=lng;lat=pos.coords.latitude;lng=pos.coords.longitude;
-        lastGpsUpdate=Date.now();
-        document.getElementById("gps-lost-banner").classList.remove("show");
-        pushLoc();
+        lastGpsUpdate=Date.now();document.getElementById("gps-lost-banner").classList.remove("show");pushLoc();
       },()=>{},{enableHighAccuracy:true,timeout:8000});
     }
   }
@@ -513,8 +496,7 @@ function onVisibility(){
 
 function pushLoc(){
   if(!lat||!lng||!isSharing)return;
-  const elapsed=Date.now()-shareStart;
-  if(elapsed>=SHARE_MS){showToast("60 min reached — stopped");stopSharing(false);return;}
+  if(Date.now()-shareStart>=SHARE_MS){showToast("60 min reached");stopSharing(false);return;}
   set(ref(db,`cabs/${selectedRoute}/${selectedCab.replace(":","_")}`),{
     lat,lng,time:selectedCab,full:isFull,active:true,
     heading:lastHeading,status:"active",updatedAt:Date.now()
@@ -537,27 +519,21 @@ function toggleFull(){
 }
 
 function markReached(){
-  showModal("✅","Cab Reached Destination?","Watchers will see the arrival for 10 minutes, then the record is removed automatically.",[
+  showModal("✅","Cab Reached Destination?","Watchers will see the arrival for 10 minutes.",[
     {label:"Yes, Cab Reached!",cls:"btn-m-primary",fn:"confirmReached()"},
     {label:"Cancel",cls:"btn-m-secondary",fn:"closeModal()"}
   ]);
 }
-
 window.confirmReached=async function(){
   closeModal();
   const key=selectedCab.replace(":","_");
-  await set(ref(db,`cabs/${selectedRoute}/${key}`),{
-    time:selectedCab,active:true,status:"arrived",arrivedAt:Date.now()
-  });
-  stopSharing(true);
-  showToast("✅ Arrival marked! Auto-removes in 10 minutes.");
-  setTimeout(async()=>{
-    try{await remove(ref(db,`cabs/${selectedRoute}/${key}`));}catch(e){}
-  },ARRIVED_SHOW_MS);
+  await set(ref(db,`cabs/${selectedRoute}/${key}`),{time:selectedCab,active:true,status:"arrived",arrivedAt:Date.now()});
+  stopSharing(true);showToast("✅ Arrival marked! Auto-removes in 10 minutes.");
+  setTimeout(async()=>{try{await remove(ref(db,`cabs/${selectedRoute}/${key}`));}catch(e){}},ARRIVED_SHOW_MS);
 };
 
 function confirmStop(){
-  showModal("⏹️","Stop Sharing?","Your location and record will be immediately removed from Firebase.",[
+  showModal("⏹️","Stop Sharing?","Your record will be immediately removed from Firebase.",[
     {label:"Yes, Stop & Remove",cls:"btn-m-danger",fn:"stopSharing(false)"},
     {label:"Keep Sharing",cls:"btn-m-secondary",fn:"closeModal()"}
   ]);
@@ -572,80 +548,138 @@ window.stopSharing=async function(skipRemove=false){
   timerIds.forEach(clearInterval);timerIds=[];
   if(wakeLock){try{wakeLock.release();}catch(e){}wakeLock=null;}
   document.getElementById("sharing-overlay").classList.remove("active");
-  // Always delete from Firebase unless it was an arrived state (handled separately)
-  if(!skipRemove&&selectedCab){
-    try{await remove(ref(db,`cabs/${selectedRoute}/${selectedCab.replace(":","_")}`));}catch(e){}
-  }
+  if(!skipRemove&&selectedCab){try{await remove(ref(db,`cabs/${selectedRoute}/${selectedCab.replace(":","_")}`));}catch(e){}}
   lat=null;lng=null;
   showScreen("screen-home");
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CLEAN STALE RECORDS
-// showToast=true for manual trigger, silent for auto
+// OSRM ROAD ROUTE FETCH
+// Called once when watcher opens the map
+// Returns array of [lat, lng] following real roads
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-window.cleanStaleRecords=async function(showFeedback=false){
+async function fetchRoadRoute(){
+  const route=ROUTES[selectedRoute];
+  const [oLat,oLng]=route.origin;
+  const [dLat,dLng]=route.destination;
+  const statusEl=document.getElementById("route-status");
+  statusEl.classList.add("show");
+  statusEl.textContent="Loading road route...";
+
   try{
-    const snap=await get(ref(db,`cabs/${selectedRoute}`));
-    if(!snap.exists()){if(showFeedback)showToast("✅ Firebase is already clean.");return;}
-    const data=snap.val();const now=Date.now();let cleaned=0;
-    const tasks=Object.entries(data).map(async([key,cab])=>{
-      const ts=cab.updatedAt||cab.arrivedAt||0;
-      const noTs=!ts;
-      const isDead=cab.status==="active"&&ts&&(now-ts)>STALE_DEAD_MS;
-      const arrivedExpired=cab.status==="arrived"&&ts&&(now-ts)>ARRIVED_SHOW_MS;
-      const tooOld=ts&&(now-ts)>MAX_RECORD_AGE;
-      if(noTs||isDead||arrivedExpired||tooOld){
-        await remove(ref(db,`cabs/${selectedRoute}/${key}`));cleaned++;
-      }
-    });
-    await Promise.all(tasks);
-    if(showFeedback){
-      showToast(cleaned>0?`🗑 Removed ${cleaned} ghost record${cleaned>1?"s":""}.`:"✅ No ghost records found.");
+    // OSRM public API — works from browsers (CORS enabled), format: lng,lat
+    const url=`https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${dLng},${dLat}?overview=full&geometries=geojson`;
+    const resp=await fetch(url);
+    const data=await resp.json();
+    if(data.code==="Ok"&&data.routes.length){
+      // OSRM returns [lng,lat], we need [lat,lng] for Leaflet
+      fullRouteCoords=data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+      statusEl.textContent=`Route loaded (${(data.routes[0].distance/1000).toFixed(1)}km)`;
+      setTimeout(()=>statusEl.classList.remove("show"),2000);
+      // Redraw any existing cab route lines now that we have road coords
+      Object.keys(lastCabData).forEach(key=>{
+        const cab=lastCabData[key];
+        if(cab&&cab.active&&cab.lat&&cab.lng)
+          updateCabRouteLine(key,cab.time,[cab.lat,cab.lng]);
+      });
+    }else{
+      throw new Error("OSRM no route");
     }
-  }catch(e){if(showFeedback)showToast("Error cleaning records.");}
-};
-
-// ── HEADING & DISTANCE ──
-function calcHeading(la1,ln1,la2,ln2){
-  const dL=(ln2-ln1)*Math.PI/180,r1=la1*Math.PI/180,r2=la2*Math.PI/180;
-  const y=Math.sin(dL)*Math.cos(r2),x=Math.cos(r1)*Math.sin(r2)-Math.sin(r1)*Math.cos(r2)*Math.cos(dL);
-  return((Math.atan2(y,x)*180/Math.PI)+360)%360;
-}
-function haversine(la1,ln1,la2,ln2){
-  const R=6371000,r=Math.PI/180;
-  const dLa=(la2-la1)*r,dLn=(ln2-ln1)*r;
-  const a=Math.sin(dLa/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLn/2)**2;
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-function fmtDist(m){return m<1000?Math.round(m)+"m":(m/1000).toFixed(1)+"km";}
-function fmtAge(ms){
-  if(ms<60000)return`${Math.floor(ms/1000)}s ago`;
-  if(ms<3600000)return`${Math.floor(ms/60000)}m ${Math.floor((ms%60000)/1000)}s ago`;
-  return`${Math.floor(ms/3600000)}h ago`;
+  }catch(e){
+    // Fallback: straight line between origin and destination
+    fullRouteCoords=[route.origin,route.destination];
+    statusEl.textContent="Using direct route (road fetch failed)";
+    setTimeout(()=>statusEl.classList.remove("show"),3000);
+  }
 }
 
-// ── MAP ──
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PATH TRIMMING — Uber-style remaining route
+// Finds the closest point on the road to the cab,
+// draws only the portion AHEAD of the cab
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function findClosestPointIndex(coords, cabLat, cabLng){
+  let minDist=Infinity, minIdx=0;
+  for(let i=0;i<coords.length;i++){
+    const d=haversine(cabLat,cabLng,coords[i][0],coords[i][1]);
+    if(d<minDist){minDist=d;minIdx=i;}
+  }
+  return minIdx;
+}
+
+function updateCabRouteLine(key, cabTime, cabPos){
+  if(!watcherMap||fullRouteCoords.length<2)return;
+  const color=CAB_COLORS[cabTime]||"#0E6FFF";
+  const closestIdx=findClosestPointIndex(fullRouteCoords,cabPos[0],cabPos[1]);
+  // Remaining route = from cab position onward to destination
+  const remaining=[cabPos,...fullRouteCoords.slice(closestIdx+1)];
+
+  if(cabRouteLines[key]){
+    // Update existing polyline
+    cabRouteLines[key].setLatLngs(remaining);
+  }else{
+    // Create new route line
+    cabRouteLines[key]=L.polyline(remaining,{
+      color:color,
+      weight:5,
+      opacity:0.85,
+      lineCap:"round",
+      lineJoin:"round"
+    }).addTo(watcherMap);
+    // Put route lines below markers
+    cabRouteLines[key].bringToBack();
+  }
+}
+
+function removeCabRouteLine(key){
+  if(cabRouteLines[key]){
+    watcherMap.removeLayer(cabRouteLines[key]);
+    delete cabRouteLines[key];
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MAP INIT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 async function initMap(){
   if(watcherMap)return;
   const route=ROUTES[selectedRoute];
   watcherMap=L.map("map",{center:route.center,zoom:route.zoom,zoomControl:true});
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap contributors",maxZoom:19}).addTo(watcherMap);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    attribution:"© OpenStreetMap contributors",maxZoom:19
+  }).addTo(watcherMap);
+  // Origin marker
   const oIcon=L.divIcon({html:`<div style="background:#0E6FFF;color:#fff;padding:5px 10px;border-radius:8px;font-family:DM Sans,sans-serif;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(14,111,255,.4)">🏢 ${route.originLabel}</div>`,className:"",iconAnchor:[0,0]});
   L.marker(route.origin,{icon:oIcon}).addTo(watcherMap);
+  // Destination marker
   const dIcon=L.divIcon({html:`<div style="background:#00BFA5;color:#fff;padding:5px 10px;border-radius:8px;font-family:DM Sans,sans-serif;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,191,165,.4)">🏁 ${route.destLabel}</div>`,className:"",iconAnchor:[0,0]});
   L.marker(route.destination,{icon:dIcon}).addTo(watcherMap);
-  L.polyline([route.origin,route.destination],{color:"#8C9DB5",weight:3,dashArray:"8 6",opacity:.45}).addTo(watcherMap);
 }
 
-function makeCabIcon(time,full,arrived,heading){
-  const cls=arrived?"arrived":full?"full":"";
-  const label=arrived?"✅ Arrived":full?`🚫 ${time}`:`🚌 ${time}`;
-  const html=`<div class="cab-marker-outer" style="transform:rotate(${heading}deg)">
-    <div class="cab-label-tag ${cls}" style="transform:rotate(${-heading}deg)">${label}</div>
-    <img src="${CAB_PNG}" class="cab-van-png" width="52" height="23" alt="cab"/>
-  </div>`;
-  return L.divIcon({html,className:"",iconAnchor:[26,11]});
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CAB ICON — FIXED ANCHOR + CORRECT ROTATION
+// The outer .cab-marker-wrap does NOT rotate
+// Only the <img> rotates with: heading - 90deg
+// (because the van image nose points RIGHT = east = 90°)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function makeCabIcon(cabTime, full, arrived, heading){
+  const color=CAB_COLORS[cabTime]||"#0E6FFF";
+  const labelBg=arrived?"#00C853":full?"#FF4444":color;
+  const label=arrived?"✅ Arrived":full?`🚫 ${cabTime}`:`🚌 ${cabTime}`;
+  // heading - 90 corrects for the image being landscape (nose pointing right)
+  const imgRotation=arrived?0:(heading-90);
+  const html=`
+    <div class="cab-marker-wrap">
+      <div class="cab-label-tag" style="background:${labelBg}">${label}</div>
+      <img
+        src="${CAB_PNG}"
+        class="cab-van-img"
+        style="transform:rotate(${imgRotation}deg)"
+        alt="cab"
+      />
+    </div>`;
+  // iconAnchor is at center of the img — fixed, does NOT rotate with image
+  return L.divIcon({html,className:"",iconAnchor:[26,28]});
 }
 
 function startWatcher(){
@@ -655,54 +689,66 @@ function startWatcher(){
     const data=snap.val()||{};lastCabData=data;
     const keys=Object.keys(data);
     const now=Date.now();
-    // Remove markers for deleted records
-    Object.keys(cabMarkers).forEach(k=>{if(!keys.includes(k)){watcherMap.removeLayer(cabMarkers[k]);delete cabMarkers[k];}});
+    // Remove markers + route lines for deleted records
+    Object.keys(cabMarkers).forEach(k=>{
+      if(!keys.includes(k)){
+        watcherMap.removeLayer(cabMarkers[k]);delete cabMarkers[k];
+        removeCabRouteLine(k);
+      }
+    });
     keys.forEach(key=>{
       const cab=data[key];if(!cab.active)return;
       const arrived=cab.status==="arrived";
       const ts=cab.updatedAt||0;
       const age=now-ts;
-      // Auto-remove dead records immediately
+      // Auto-remove dead records
       if(!arrived&&ts&&age>STALE_DEAD_MS){
         remove(ref(db,`cabs/${selectedRoute}/${key}`));
         if(cabMarkers[key]){watcherMap.removeLayer(cabMarkers[key]);delete cabMarkers[key];}
+        removeCabRouteLine(key);
         return;
       }
-      const icon=makeCabIcon(cab.time,cab.full||false,arrived,cab.heading||0);
+      const heading=cab.heading||0;
+      const icon=makeCabIcon(cab.time,cab.full||false,arrived,heading);
       const pos=arrived?ROUTES[selectedRoute].destination:[cab.lat,cab.lng];
       if(!pos||!pos[0])return;
-      if(cabMarkers[key]){cabMarkers[key].setLatLng(pos);cabMarkers[key].setIcon(icon);}
-      else{cabMarkers[key]=L.marker(pos,{icon}).addTo(watcherMap);}
+      // Update or create marker
+      if(cabMarkers[key]){
+        cabMarkers[key].setLatLng(pos);
+        cabMarkers[key].setIcon(icon);
+      }else{
+        cabMarkers[key]=L.marker(pos,{icon,zIndexOffset:1000}).addTo(watcherMap);
+      }
+      // Update route line (trim based on cab position)
+      if(!arrived&&cab.lat&&cab.lng){
+        updateCabRouteLine(key,cab.time,pos);
+      }else if(arrived){
+        removeCabRouteLine(key);
+      }
     });
     renderList(data);
   });
-  // Also run cleanup every 60s silently
   setInterval(()=>cleanStaleRecords(false),60*1000);
 }
 
 function renderList(data){
   const list=document.getElementById("watcher-list");
   const now=Date.now();
-  // Filter: only show records with valid timestamps and not dead
   const cabs=Object.values(data).filter(c=>{
     if(!c.active)return false;
     if(c.status==="arrived")return true;
     const ts=c.updatedAt||0;
-    // Don't show in list if no timestamp or older than STALE_DEAD_MS
     return ts&&(now-ts)<STALE_DEAD_MS;
   });
-
   if(!cabs.length){
-    const h=new Date().getHours();const morning=h>=6&&h<=12;
-    list.innerHTML=`<div class="no-cabs"><div class="no-cabs-icon">${morning?"🔍":"🌙"}</div><div>${morning?"No volunteers sharing right now.":"Morning cabs only (8AM–12PM)."}</div></div>`;
+    const h=new Date().getHours();
+    list.innerHTML=`<div class="no-cabs"><div class="no-cabs-icon">${h>=6&&h<=12?"🔍":"🌙"}</div><div>${h>=6&&h<=12?"No volunteers sharing right now.":"Morning cabs only (8AM–12PM)."}</div></div>`;
     document.getElementById("stale-banner").classList.remove("show");
     return;
   }
-
   cabs.sort((a,b)=>a.time.localeCompare(b.time));
   list.innerHTML="";
   let hasWarn=false;
-
   cabs.forEach(cab=>{
     const key=cab.time.replace(":","_");
     const arrived=cab.status==="arrived";
@@ -710,10 +756,8 @@ function renderList(data){
     const age=now-ts;
     const isWarn=!arrived&&ts&&age>STALE_WARN_MS;
     if(isWarn)hasWarn=true;
-
-    const rowCls=arrived?"arrived":isWarn?"live":"live";
+    const color=CAB_COLORS[cab.time]||"#0E6FFF";
     let statusTxt,updateTxt,rightEl;
-
     if(arrived){
       statusTxt="🏁 Reached Krisp IT Park";
       updateTxt="Arrived · auto-clears in "+Math.max(0,Math.round((ARRIVED_SHOW_MS-age)/60000))+"min";
@@ -723,19 +767,18 @@ function renderList(data){
       updateTxt="Volunteer may be in low coverage zone";
       rightEl='<span style="font-size:16px">📡</span>';
     }else{
-      statusTxt="🚌 Active"+(cab.full?" · Full":"");
+      statusTxt=`🚌 Active${cab.full?" · Full":""}`;
       updateTxt="Updated "+fmtAge(age);
       rightEl=cab.full?'<div class="cab-full-badge">FULL</div>':'<div class="cab-live-dot"></div>';
     }
-
     const row=document.createElement("div");
-    row.className=`cab-row ${rowCls}`;
-    row.innerHTML=`<div class="cab-time">${cab.time}</div><div class="cab-info"><div class="cab-status-txt">${statusTxt}</div><div class="cab-update">${updateTxt}</div></div>${rightEl}`;
+    row.className=`cab-row ${arrived?"arrived":"live"}`;
+    // Color-coded left border matching route line color
+    row.style.borderLeft=`4px solid ${arrived?"#00C853":color}`;
+    row.innerHTML=`<div class="cab-time" style="color:${arrived?"#00C853":color}">${cab.time}</div><div class="cab-info"><div class="cab-status-txt">${statusTxt}</div><div class="cab-update">${updateTxt}</div></div>${rightEl}`;
     row.onclick=()=>{const mk=cabMarkers[key];if(mk)watcherMap.setView(mk.getLatLng(),16,{animate:true});};
     list.appendChild(row);
   });
-
-  // Show inactive cabs
   CAB_TIMES.forEach(t=>{
     if(!cabs.find(c=>c.time===t)){
       const row=document.createElement("div");row.className="cab-row";
@@ -743,8 +786,52 @@ function renderList(data){
       list.appendChild(row);
     }
   });
-
   document.getElementById("stale-banner").classList.toggle("show",hasWarn);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CLEANUP
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+window.cleanStaleRecords=async function(showFeedback=false){
+  try{
+    const snap=await get(ref(db,`cabs/${selectedRoute}`));
+    if(!snap.exists()){if(showFeedback)showToast("✅ Firebase is already clean.");return;}
+    const now=Date.now();let cleaned=0;
+    const tasks=Object.entries(snap.val()).map(async([key,cab])=>{
+      const ts=cab.updatedAt||cab.arrivedAt||0;
+      if(!ts||(cab.status==="active"&&(now-ts)>STALE_DEAD_MS)||(cab.status==="arrived"&&(now-ts)>ARRIVED_SHOW_MS)||(now-ts)>MAX_RECORD_AGE){
+        await remove(ref(db,`cabs/${selectedRoute}/${key}`));cleaned++;
+      }
+    });
+    await Promise.all(tasks);
+    if(showFeedback)showToast(cleaned>0?`🗑 Removed ${cleaned} ghost record${cleaned>1?"s":""}.`:"✅ No ghost records found.");
+  }catch(e){if(showFeedback)showToast("Error cleaning records.");}
+};
+
+function cleanupWatcher(){
+  watcherRef=null;
+  if(listRefreshId){clearInterval(listRefreshId);listRefreshId=null;}
+  if(watcherMap){watcherMap.remove();watcherMap=null;}
+  cabMarkers={};Object.values(cabRouteLines).forEach(l=>{try{watcherMap&&watcherMap.removeLayer(l);}catch(e){}});
+  cabRouteLines={};lastCabData={};fullRouteCoords=[];
+  window._distLine=null;myLocMarker=null;
+}
+
+// ── MATH UTILS ──
+function calcHeading(la1,ln1,la2,ln2){
+  const dL=(ln2-ln1)*Math.PI/180,r1=la1*Math.PI/180,r2=la2*Math.PI/180;
+  const y=Math.sin(dL)*Math.cos(r2),x=Math.cos(r1)*Math.sin(r2)-Math.sin(r1)*Math.cos(r2)*Math.cos(dL);
+  return((Math.atan2(y,x)*180/Math.PI)+360)%360;
+}
+function haversine(la1,ln1,la2,ln2){
+  const R=6371000,r=Math.PI/180;
+  const a=Math.sin(((la2-la1)*r)/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(((ln2-ln1)*r)/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function fmtDist(m){return m<1000?Math.round(m)+"m":(m/1000).toFixed(1)+"km";}
+function fmtAge(ms){
+  if(ms<60000)return`${Math.floor(ms/1000)}s ago`;
+  return`${Math.floor(ms/60000)}m ${Math.floor((ms%60000)/1000)}s ago`;
 }
 
 // ── LOCATE + DISTANCE ──
@@ -758,13 +845,10 @@ function locateAndDistance(){
     const myIcon=L.divIcon({html:`<div style="width:14px;height:14px;border-radius:50%;background:#0E6FFF;border:3px solid #fff;box-shadow:0 0 0 3px rgba(14,111,255,.3)"></div>`,className:"",iconAnchor:[7,7]});
     myLocMarker=L.marker([watcherLat,watcherLng],{icon:myIcon}).addTo(watcherMap);
     const now=Date.now();
-    const activeCabs=Object.values(lastCabData).filter(c=>c.active&&c.status==="active"&&c.lat&&c.lng&&(now-(c.updatedAt||0))<STALE_DEAD_MS);
-    if(!activeCabs.length){
-      watcherMap.setView([watcherLat,watcherLng],15,{animate:true});
-      showToast("📍 Your location found. No active cabs to measure.");resetLocBtn();return;
-    }
+    const active=Object.values(lastCabData).filter(c=>c.active&&c.status==="active"&&c.lat&&c.lng&&(now-(c.updatedAt||0))<STALE_DEAD_MS);
+    if(!active.length){watcherMap.setView([watcherLat,watcherLng],15,{animate:true});showToast("📍 Your location found. No active cabs to measure.");resetLocBtn();return;}
     let nearest=null,minDist=Infinity;
-    activeCabs.forEach(cab=>{const d=haversine(watcherLat,watcherLng,cab.lat,cab.lng);if(d<minDist){minDist=d;nearest=cab;}});
+    active.forEach(cab=>{const d=haversine(watcherLat,watcherLng,cab.lat,cab.lng);if(d<minDist){minDist=d;nearest=cab;}});
     watcherMap.fitBounds(L.latLngBounds([[watcherLat,watcherLng],[nearest.lat,nearest.lng]]),{padding:[60,60],maxZoom:16,animate:true});
     if(window._distLine)watcherMap.removeLayer(window._distLine);
     window._distLine=L.polyline([[watcherLat,watcherLng],[nearest.lat,nearest.lng]],{color:"#0E6FFF",weight:2.5,dashArray:"6 5",opacity:.7}).addTo(watcherMap);
@@ -781,13 +865,7 @@ function closeDistanceBubble(){
   if(myLocMarker){watcherMap.removeLayer(myLocMarker);myLocMarker=null;}
 }
 
-function cleanupWatcher(){
-  watcherRef=null;
-  if(listRefreshId){clearInterval(listRefreshId);listRefreshId=null;}
-  if(watcherMap){watcherMap.remove();watcherMap=null;cabMarkers={};lastCabData={};}
-  window._distLine=null;myLocMarker=null;
-}
-
+// ── MODAL / TOAST ──
 function showModal(icon,title,desc,actions){
   document.getElementById("m-icon").textContent=icon;
   document.getElementById("m-title").textContent=title;
